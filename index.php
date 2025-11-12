@@ -1,8 +1,8 @@
 <?php
 
 	// DNS Patrina
-	// Version: 6.0.1
-	// Date: 2024.07
+	// Version: 6.1.0
+	// Date: 2025.11
 
 	include 'config.php';
 	error_reporting(E_ALL & ~E_WARNING);
@@ -39,13 +39,6 @@
 		return preg_match("#^".strtr(preg_quote($pattern, '#'), array('\*' => '.*', '\?' => '.'))."$#i", $str);
 	}
 
-	function match_string($pattern, $str)
-	{
-		$pattern = preg_replace('/([^*])/e', 'preg_quote("$1", "/")', $pattern);
-		$pattern = str_replace('*', '.*', $pattern);
-		return (bool) preg_match('/^' . $pattern . '$/i', $str);
-	}
-
 	function getXMLTag($xmlData, $record_id, $record_value, $tag) {
 		for ($i = 0; $i < $xmlData->length; $i++) {
 			if ($xmlData->item($i)->getElementsByTagName($record_id)->item(0)->nodeValue == $record_value) {
@@ -70,7 +63,7 @@
 		$domain = "";
 
 		if (isset($_GET['hostname'])) {
-			$domain = $_GET['hostname'];
+			$domain = trim(strtolower($_GET['hostname']));
 		}
 
 		if (isset($_GET['myip'])) {
@@ -82,7 +75,7 @@
 			if ($username == $users[$row][0] && $password == $users[$row][1]) {
 				$userHosts = explode(',', $users[$row][2]);
 				for ($userHost = 0; $userHost < count($userHosts); $userHost++) {
-					if (match_fn($userHosts[$userHost], $domain)) {
+					if (match_fn(strtolower($userHosts[$userHost]), $domain)) {
 						$user_auth = true;
 						break;
 					}
@@ -90,7 +83,7 @@
 			}
 		}
 
-		if (!$user_auth || !strstr($domain, '.')) {
+		if (!$user_auth || !strstr($domain, '.') || !preg_match('/^[a-z0-9.-]+$/', $domain)) {
 			http_response_code(401);
 			header('WWW-Authenticate: Basic realm="Authentication Required"');
 			print_status("401 Unauthorized");
@@ -140,6 +133,11 @@
 				}
 			}
 
+			if (isset($_GET['offline'])) {
+				returnOK();
+ 				exit;
+			}
+
 			$dnsowl_xml = file_get_contents('https://www.namesilo.com/api/dnsAddRecord?version=1&type=xml&key='.$parameter.'&domain='.$sld.'&rrtype='.$rrtype.'&rrhost='.$subdomain.'&rrvalue='.$host.'&rrttl=3600');
 			$xml = new DOMDocument();
 			$xml->loadXML($dnsowl_xml);
@@ -153,9 +151,16 @@
 			}
 		}
 		elseif ($provider == "ZONE") {
-		    $zone_file = $parameter."/".$domain.".".$rrtype;
-			file_put_contents($zone_file, $host);
-			chmod($zone_file, 0777);
+			$zone_file = $parameter."/".$domain.".".$rrtype;
+			if (isset($_GET['offline'])) {
+				if (file_exists($zone_file)) {
+					unlink($zone_file);
+				}
+			}
+			else {
+				file_put_contents($zone_file, $host);
+				chmod($zone_file, 0777);
+			}
 			returnOK();
 			exit;
 		}
