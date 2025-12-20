@@ -1,8 +1,8 @@
 <?php
 
 	// DNS Patrina
-	// Version: 6.1.0
-	// Date: 2025.11
+	// Version: 6.2.0
+	// Date: 2025.12
 
 	include 'config.php';
 	error_reporting(E_ALL & ~E_WARNING);
@@ -64,6 +64,10 @@
 
 		if (isset($_GET['hostname'])) {
 			$domain = trim(strtolower($_GET['hostname']));
+		}
+
+		if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+			$host = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0]);
 		}
 
 		if (isset($_GET['myip'])) {
